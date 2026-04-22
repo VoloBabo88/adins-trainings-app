@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/adins-trainings-app/sw.js', { scope: '/adins-trainings-app/' })})}
