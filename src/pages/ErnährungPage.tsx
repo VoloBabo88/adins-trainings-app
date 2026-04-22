@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Plus, Flame, Beef, Wheat, Droplet, Trash2 } from 'lucide-react'
+import { Plus, Flame, Beef, Wheat, Droplet, Trash2, Dumbbell } from 'lucide-react'
 import { MacroRing } from '../components/MacroRing'
 import { Modal } from '../components/Modal'
 import { Spinner } from '../components/Spinner'
 import { useMeals } from '../hooks/useMeals'
+import { useTodayWorkout } from '../hooks/useTodayWorkout'
 import { Profile } from '../lib/supabase'
 import { showToast } from '../components/Toast'
 
@@ -13,10 +14,6 @@ type SubTab = 'uebersicht' | 'training' | 'ruhetag'
 const MEAL_TYPES = ['Frühstück', 'Mittagessen', 'Abendessen', 'Snack']
 const MEAL_EMOJI: { [k: string]: string } = { Frühstück: '🥣', Mittagessen: '🍽️', Abendessen: '🌙', Snack: '🍎' }
 const WD_MAP: { [k: number]: string } = { 1: 'Mo', 2: 'Di', 3: 'Mi', 4: 'Do', 5: 'Fr', 6: 'Sa', 0: 'So' }
-
-function isRest(profile: Profile | null) {
-  return profile?.rest_days?.includes(WD_MAP[new Date().getDay()]) ?? false
-}
 
 function GoalSection({ label, cal, prot, carbs, fat }: { label: string; cal: number; prot: number; carbs: number; fat: number }) {
   return (
@@ -46,7 +43,19 @@ export function ErnährungPage({ userId, profile }: Props) {
   const { meals, loading, addMeal, deleteMeal } = useMeals(userId, today)
   const [form, setForm] = useState({ mealType: 'Frühstück', name: '', calories: '', protein: '', carbs: '', fat: '' })
 
-  const restDay = isRest(profile)
+  const isFlexible = profile?.plan_type === 'flexible'
+  const { todayLog, loading: logLoading } = useTodayWorkout(userId)
+
+  // Determine day type: 'training' | 'rest' | 'unknown'
+  const dayType = isFlexible
+    ? todayLog === undefined || logLoading
+      ? 'unknown'
+      : todayLog === null
+        ? 'unknown'
+        : todayLog.completed ? 'training' : 'rest'
+    : (profile?.rest_days?.includes(WD_MAP[new Date().getDay()]) ? 'rest' : 'training')
+
+  const restDay = dayType === 'rest'
   const calGoal  = restDay ? (profile?.calorie_goal_rest ?? 2200) : (profile?.calorie_goal ?? 2800)
   const protGoal = restDay ? (profile?.protein_goal_rest ?? 160)  : (profile?.protein_goal ?? 180)
   const carbGoal = restDay ? (profile?.carbs_goal_rest   ?? 200)  : (profile?.carbs_goal   ?? 320)
@@ -105,48 +114,61 @@ export function ErnährungPage({ userId, profile }: Props) {
       </div>
 
       <div className="page-content" style={{ paddingTop: 20 }}>
-        {loading && <Spinner />}
+        {(loading || logLoading) && <Spinner />}
 
-        {!loading && subTab === 'uebersicht' && (
+        {!loading && !logLoading && subTab === 'uebersicht' && (
           <>
-            {/* Calories banner */}
-            <div style={{ background: '#1a1a1a', borderRadius: 16, padding: 16, marginBottom: 16 }}>
-              <div style={{ fontSize: 13, color: '#7c3aed', fontWeight: 700, marginBottom: 10 }}>
-                🔥 Heute — {restDay ? 'Ruhetag' : 'Trainingstag'}
-              </div>
-              <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>Kalorien</div>
-              <div style={{ fontSize: 28, fontWeight: 800, color: '#fff', marginBottom: 8 }}>
-                {totalCal.toLocaleString()} <span style={{ fontSize: 16, color: '#888', fontWeight: 400 }}>/ {calGoal.toLocaleString()} kcal</span>
-              </div>
-              <div style={{ background: '#2a2a2a', borderRadius: 4, height: 6, marginBottom: 8, overflow: 'hidden' }}>
-                <div style={{ width: `${pct * 100}%`, height: '100%', background: pct >= 1 ? '#ef4444' : '#7c3aed', borderRadius: 4, transition: 'width 0.4s' }} />
-              </div>
-              <div style={{ fontSize: 13, color: '#888' }}>{Math.max(0, calGoal - totalCal).toLocaleString()} kcal übrig</div>
-            </div>
-
-            {/* Macro rings */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
-              <MacroRing value={Math.round(totalProt)}  max={protGoal} color="#22c55e" label="Protein" unit="g" />
-              <MacroRing value={Math.round(totalCarbs)} max={carbGoal} color="#eab308" label="Carbs"   unit="g" />
-              <MacroRing value={Math.round(totalFat)}   max={fatGoal}  color="#7c3aed" label="Fett"    unit="g" />
-            </div>
-
-            {/* Makro overview */}
-            <div style={{ background: '#1a1a1a', borderRadius: 16, padding: 16, marginBottom: 16 }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 12 }}>Deine Makros</div>
-              {[
-                { icon: <Flame size={15} color="#f97316" />, label: 'Kalorien',      value: `${calGoal} kcal`  },
-                { icon: <Beef  size={15} color="#22c55e" />, label: 'Protein',       value: `${protGoal} g`    },
-                { icon: <Wheat size={15} color="#eab308" />, label: 'Kohlenhydrate', value: `${carbGoal} g`    },
-                { icon: <Droplet size={15} color="#7c3aed"/>,label: 'Fett',          value: `${fatGoal} g`     },
-              ].map((row, i, arr) => (
-                <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: i < arr.length - 1 ? '1px solid #2a2a2a' : 'none' }}>
-                  {row.icon}
-                  <span style={{ flex: 1, fontSize: 15, color: '#fff' }}>{row.label}</span>
-                  <span style={{ fontSize: 15, color: '#fff', fontWeight: 600 }}>{row.value}</span>
+            {/* Flexible mode — no selection yet */}
+            {isFlexible && dayType === 'unknown' && (
+              <div style={{ background: '#1a1a1a', borderRadius: 16, padding: 28, textAlign: 'center', marginBottom: 16 }}>
+                <Dumbbell size={36} color="#555" style={{ marginBottom: 12 }} />
+                <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 8 }}>
+                  Wähle erst dein heutiges Training aus
                 </div>
-              ))}
-            </div>
+                <div style={{ fontSize: 14, color: '#888', lineHeight: 1.5 }}>
+                  Gehe zum Training-Tab und wähle dein heutiges Workout, um deinen Kalorienbedarf zu sehen.
+                </div>
+              </div>
+            )}
+
+            {/* Calories banner + macros — hidden until day type is known */}
+            {dayType !== 'unknown' && <>
+              <div style={{ background: '#1a1a1a', borderRadius: 16, padding: 16, marginBottom: 16 }}>
+                <div style={{ fontSize: 13, color: '#7c3aed', fontWeight: 700, marginBottom: 10 }}>
+                  🔥 Heute — {restDay ? 'Ruhetag' : 'Trainingstag'}
+                </div>
+                <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>Kalorien</div>
+                <div style={{ fontSize: 28, fontWeight: 800, color: '#fff', marginBottom: 8 }}>
+                  {totalCal.toLocaleString()} <span style={{ fontSize: 16, color: '#888', fontWeight: 400 }}>/ {calGoal.toLocaleString()} kcal</span>
+                </div>
+                <div style={{ background: '#2a2a2a', borderRadius: 4, height: 6, marginBottom: 8, overflow: 'hidden' }}>
+                  <div style={{ width: `${pct * 100}%`, height: '100%', background: pct >= 1 ? '#ef4444' : '#7c3aed', borderRadius: 4, transition: 'width 0.4s' }} />
+                </div>
+                <div style={{ fontSize: 13, color: '#888' }}>{Math.max(0, calGoal - totalCal).toLocaleString()} kcal übrig</div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
+                <MacroRing value={Math.round(totalProt)}  max={protGoal} color="#22c55e" label="Protein" unit="g" />
+                <MacroRing value={Math.round(totalCarbs)} max={carbGoal} color="#eab308" label="Carbs"   unit="g" />
+                <MacroRing value={Math.round(totalFat)}   max={fatGoal}  color="#7c3aed" label="Fett"    unit="g" />
+              </div>
+
+              <div style={{ background: '#1a1a1a', borderRadius: 16, padding: 16, marginBottom: 16 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 12 }}>Deine Makros</div>
+                {[
+                  { icon: <Flame size={15} color="#f97316" />, label: 'Kalorien',      value: `${calGoal} kcal`  },
+                  { icon: <Beef  size={15} color="#22c55e" />, label: 'Protein',       value: `${protGoal} g`    },
+                  { icon: <Wheat size={15} color="#eab308" />, label: 'Kohlenhydrate', value: `${carbGoal} g`    },
+                  { icon: <Droplet size={15} color="#7c3aed"/>,label: 'Fett',          value: `${fatGoal} g`     },
+                ].map((row, i, arr) => (
+                  <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: i < arr.length - 1 ? '1px solid #2a2a2a' : 'none' }}>
+                    {row.icon}
+                    <span style={{ flex: 1, fontSize: 15, color: '#fff' }}>{row.label}</span>
+                    <span style={{ fontSize: 15, color: '#fff', fontWeight: 600 }}>{row.value}</span>
+                  </div>
+                ))}
+              </div>
+            </>}
 
             {/* Meals */}
             <div>
@@ -184,13 +206,13 @@ export function ErnährungPage({ userId, profile }: Props) {
           </>
         )}
 
-        {!loading && subTab === 'training' && (
+        {!loading && !logLoading && subTab === 'training' && (
           <GoalSection label="Trainingstag Ziele"
             cal={profile?.calorie_goal ?? 2800} prot={profile?.protein_goal ?? 180}
             carbs={profile?.carbs_goal ?? 320} fat={profile?.fat_goal ?? 80} />
         )}
 
-        {!loading && subTab === 'ruhetag' && (
+        {!loading && !logLoading && subTab === 'ruhetag' && (
           <GoalSection label="Ruhetag Ziele"
             cal={profile?.calorie_goal_rest ?? 2200} prot={profile?.protein_goal_rest ?? 160}
             carbs={profile?.carbs_goal_rest ?? 200} fat={profile?.fat_goal_rest ?? 70} />

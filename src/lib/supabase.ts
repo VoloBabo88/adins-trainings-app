@@ -11,6 +11,7 @@ export type Profile = {
   motto: string
   app_name: string
   main_goal: string
+  plan_type: 'fixed' | 'flexible'
   rest_days: string[]
   onboarding_done: boolean
   calorie_goal: number

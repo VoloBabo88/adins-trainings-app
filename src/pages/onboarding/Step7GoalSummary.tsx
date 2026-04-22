@@ -5,11 +5,13 @@ import { CardioItem } from './Step6RestCardio'
 import { Spinner } from '../../components/Spinner'
 
 const GOALS = [
-  { id: 'Muskelaufbau',        emoji: '💪', title: 'Muskelaufbau',        desc: 'Ich möchte Muskeln aufbauen.'          },
-  { id: 'Kraft steigern',      emoji: '🏋️', title: 'Kraft steigern',      desc: 'Ich möchte stärker werden.'            },
-  { id: 'Fett verlieren',      emoji: '🔥', title: 'Fett verlieren',      desc: 'Ich möchte Körperfett verlieren.'      },
-  { id: 'Allgemeine Fitness',  emoji: '❤️', title: 'Allgemeine Fitness',  desc: 'Ich möchte allgemein fitter werden.'   },
-  { id: 'Athletische Leistung',emoji: '🏃', title: 'Athletische Leistung',desc: 'Ich möchte meine Leistung steigern.'   },
+  { id: 'Muskelaufbau',         emoji: '💪', title: 'Muskelaufbau',         desc: 'Ich möchte Muskeln aufbauen.'                          },
+  { id: 'Kraft steigern',       emoji: '🏋️', title: 'Kraft steigern',       desc: 'Ich möchte stärker werden.'                            },
+  { id: 'Fett verlieren',       emoji: '🔥', title: 'Fett verlieren',       desc: 'Ich möchte Körperfett verlieren.'                      },
+  { id: 'Body Recomposition',   emoji: '⚖️', title: 'Body Recomposition',   desc: 'Gleichzeitig Muskeln aufbauen & Fett abbauen.'         },
+  { id: 'Allgemeine Fitness',   emoji: '❤️', title: 'Allgemeine Fitness',   desc: 'Ich möchte allgemein fitter werden.'                   },
+  { id: 'Athletische Leistung', emoji: '🏃', title: 'Athletische Leistung', desc: 'Ich möchte meine sportliche Leistung steigern.'        },
+  { id: 'Erhalt',               emoji: '🔄', title: 'Erhalt',               desc: 'Gewicht halten & Körperzusammensetzung beibehalten.'   },
 ]
 
 const WD_NAMES: { [k: string]: string } = { Mo: 'Montag', Di: 'Dienstag', Mi: 'Mittwoch', Do: 'Donnerstag', Fr: 'Freitag', Sa: 'Samstag', So: 'Sonntag' }
@@ -51,7 +53,7 @@ export function Step7GoalSummary({ mainGoal, days, exercises, restDays, calories
               display: 'flex', alignItems: 'center', gap: 14,
               cursor: 'pointer', transition: 'all 0.2s',
             }}>
-              <span style={{ fontSize: 26 }}>{g.emoji}</span>
+              <span style={{ fontSize: 24 }}>{g.emoji}</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>{g.title}</div>
                 <div style={{ fontSize: 13, color: '#888' }}>{g.desc}</div>
@@ -76,7 +78,7 @@ export function Step7GoalSummary({ mainGoal, days, exercises, restDays, calories
           { label: 'Trainingsplan',       value: `${trainingCount} Trainingstage pro Woche` },
           { label: 'Übungen',             value: `${totalEx} Übungen in deinem Plan`        },
           { label: 'Ruhetage',            value: restNames                                   },
-          { label: 'Ø Kcal Trainingstag', value: `${caloriesTraining.toLocaleString()} kcal`},
+          { label: 'Ø Kcal Trainingstag', value: `${caloriesTraining.toLocaleString()} kcal` },
           { label: 'Ø Kcal Ruhetag',      value: `${caloriesRest.toLocaleString()} kcal`    },
         ].map((row, i) => (
           <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: i < 4 ? '1px solid #2a2a2a' : 'none' }}>
@@ -86,7 +88,7 @@ export function Step7GoalSummary({ mainGoal, days, exercises, restDays, calories
         ))}
       </div>
 
-      {/* Success box */}
+      {/* Ready box */}
       <div style={{ background: '#0d2010', border: '1px solid #22c55e', borderRadius: 12, padding: 16, display: 'flex', gap: 12 }}>
         <CheckCircle size={22} color="#22c55e" style={{ flexShrink: 0, marginTop: 2 }} />
         <div>

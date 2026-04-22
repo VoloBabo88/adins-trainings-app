@@ -37,7 +37,7 @@ function MainApp({ userId, onSignOut }: { userId: string; onSignOut: () => void 
 
   return (
     <div className="app-container">
-      {tab === 'training'    && <TrainingPage    userId={userId} />}
+      {tab === 'training'    && <TrainingPage    userId={userId} profile={profile} />}
       {tab === 'fortschritt' && <FortschrittPage userId={userId} />}
       {tab === 'ernaehrung'  && <ErnährungPage   userId={userId} profile={profile} />}
       {tab === 'profil'      && <ProfilPage      userId={userId} profile={profile} onSignOut={onSignOut} onTabChange={t => setTab(t)} onUpdateProfile={update} />}
