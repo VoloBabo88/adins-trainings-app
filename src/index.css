@@ -43,6 +43,7 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  padding-top: env(safe-area-inset-top);
 }
 
 #root {
@@ -140,7 +141,7 @@ select {
 
 .page-content {
   padding: 0 16px;
-  padding-bottom: var(--nav-height);
+  padding-bottom: calc(80px + env(safe-area-inset-bottom));
 }
 
 .page-header {

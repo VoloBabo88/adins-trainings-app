@@ -19,7 +19,7 @@ export function BottomNav({ active, onChange }: BottomNavProps) {
   return (
     <nav style={{
       position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
-      width: '100%', maxWidth: 430, height: 'var(--nav-height)',
+      width: '100%', maxWidth: 430, height: 'calc(64px + env(safe-area-inset-bottom))',
       background: '#111', borderTop: '1px solid #222',
       display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)',
       zIndex: 100, paddingBottom: 'env(safe-area-inset-bottom)',
