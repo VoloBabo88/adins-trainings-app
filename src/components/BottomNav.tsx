@@ -22,7 +22,7 @@ export function BottomNav({ active, onChange }: BottomNavProps) {
       width: '100%', maxWidth: 430, height: 'calc(64px + env(safe-area-inset-bottom))',
       background: '#111', borderTop: '1px solid #222',
       display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)',
-      zIndex: 100, paddingBottom: 'env(safe-area-inset-bottom)',
+      zIndex: 100, paddingBottom: 'max(env(safe-area-inset-bottom), 16px)',
     }}>
       {TABS.map(({ id, icon: Icon, label }) => (
         <button key={id} onClick={() => onChange(id)} style={{
