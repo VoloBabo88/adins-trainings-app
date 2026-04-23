@@ -119,20 +119,31 @@ export function OnboardingWrapper({ userId, onComplete }: Props) {
   const handleSubmit = async () => {
     setSaving(true)
     try {
-      await supabase.from('profiles').update({
-        main_goal: data.mainGoal, plan_type: data.planType, rest_days: data.restDays, onboarding_done: true,
+      // 1. Save profile settings. Try with plan_type first; fall back without it
+      //    in case the column hasn't been added to the DB yet.
+      const settings = {
+        main_goal: data.mainGoal, plan_type: data.planType, rest_days: data.restDays,
         calorie_goal: data.caloriesTraining, protein_goal: data.proteinTraining,
         carbs_goal: data.carbsTraining, fat_goal: data.fatTraining,
         calorie_goal_rest: data.caloriesRest, protein_goal_rest: data.proteinRest,
         carbs_goal_rest: data.carbsRest, fat_goal_rest: data.fatRest,
-      }).eq('id', userId)
+      }
+      const { error: settingsErr } = await supabase.from('profiles').update(settings).eq('id', userId)
+      if (settingsErr) {
+        // Retry without plan_type (column may not exist yet)
+        const { plan_type: _pt, ...settingsWithoutPlanType } = settings
+        const { error: retryErr } = await supabase.from('profiles').update(settingsWithoutPlanType).eq('id', userId)
+        if (retryErr) throw new Error('Profil-Einstellungen konnten nicht gespeichert werden.')
+      }
 
+      // 2. Create training plan
       const { data: plan, error: planErr } = await supabase
         .from('training_plans')
         .insert({ user_id: userId, name: data.planName, description: data.planDescription })
         .select().single()
       if (planErr) throw planErr
 
+      // 3. Create training days
       const { data: savedDays, error: daysErr } = await supabase
         .from('training_days')
         .insert(data.trainingDays.map((d, i) => ({
@@ -142,6 +153,7 @@ export function OnboardingWrapper({ userId, onComplete }: Props) {
         .select()
       if (daysErr) throw daysErr
 
+      // 4. Create exercises per day
       for (const day of savedDays || []) {
         const exs = data.exercises[day.weekday] || []
         if (exs.length > 0) {
@@ -156,6 +168,7 @@ export function OnboardingWrapper({ userId, onComplete }: Props) {
         }
       }
 
+      // 5. Create cardio sessions
       if (data.cardioSessions.length > 0) {
         await supabase.from('cardio_sessions').insert(
           data.cardioSessions.map(c => ({
@@ -165,11 +178,19 @@ export function OnboardingWrapper({ userId, onComplete }: Props) {
         )
       }
 
+      // 6. Mark onboarding done — this is the final gate that unlocks the main app.
+      //    It is intentionally last so the app only advances once everything is saved.
+      const { error: doneErr } = await supabase
+        .from('profiles')
+        .update({ onboarding_done: true })
+        .eq('id', userId)
+      if (doneErr) throw new Error('Onboarding konnte nicht abgeschlossen werden.')
+
       showToast('Plan erfolgreich erstellt!', 'success')
       onComplete()
     } catch (err) {
-      console.error(err)
-      showToast('Fehler beim Speichern. Bitte versuche es erneut.', 'error')
+      console.error('Onboarding save error:', err)
+      showToast(err instanceof Error ? err.message : 'Fehler beim Speichern. Bitte versuche es erneut.', 'error')
     }
     setSaving(false)
   }
