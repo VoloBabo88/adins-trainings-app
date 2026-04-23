@@ -140,7 +140,7 @@ select {
 
 .page-content {
   padding: 0 16px;
-  padding-bottom: calc(var(--nav-height) + 24px);
+  padding-bottom: var(--nav-height);
 }
 
 .page-header {
