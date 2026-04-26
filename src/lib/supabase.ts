@@ -22,6 +22,7 @@ export type Profile = {
   protein_goal_rest: number
   carbs_goal_rest: number
   fat_goal_rest: number
+  accent_color: string | null
   created_at: string
 }
 
@@ -97,6 +98,18 @@ export type WorkoutLog = {
   training_day_id: string | null
   label: string | null
   duration_minutes: number | null
+  completed: boolean
+  created_at: string
+}
+
+export type WorkoutSet = {
+  id: string
+  workout_log_id: string
+  user_id: string
+  exercise_name: string
+  set_number: number
+  weight_kg: number | null
+  reps: number | null
   completed: boolean
   created_at: string
 }

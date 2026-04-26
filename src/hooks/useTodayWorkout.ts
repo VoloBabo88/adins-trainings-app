@@ -40,5 +40,5 @@ export function useTodayWorkout(userId: string | undefined) {
     await fetchLog()
   }, [userId, today, todayLog, fetchLog])
 
-  return { todayLog, loading, selectDay }
+  return { todayLog, loading, selectDay, refetch: fetchLog }
 }

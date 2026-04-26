@@ -1,7 +1,10 @@
-import { TrainingDay } from '../lib/supabase'
+import { TrainingDay, PlanExercise } from '../lib/supabase'
+import { getMuscleIcon, detectPrimaryMuscle } from './MuscleIcons'
+import { useTheme } from '../context/ThemeContext'
 
 interface WeekCalendarProps {
   days: TrainingDay[]
+  exercises?: { [dayId: string]: PlanExercise[] }
 }
 
 const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
@@ -19,7 +22,8 @@ function getWeekDates() {
   })
 }
 
-export function WeekCalendar({ days }: WeekCalendarProps) {
+export function WeekCalendar({ days, exercises = {} }: WeekCalendarProps) {
+  const { accent } = useTheme()
   const today = new Date()
   const weekDates = getWeekDates()
 
@@ -30,25 +34,25 @@ export function WeekCalendar({ days }: WeekCalendarProps) {
           const wd = WEEKDAYS[i]
           const planDay = days.find(d => d.weekday === JS_DAY_TO_WD[date.getDay()])
           const isToday = date.toDateString() === today.toDateString()
+          const dayExercises = planDay ? (exercises[planDay.id] || []) : []
+          const muscle = planDay ? detectPrimaryMuscle(dayExercises, planDay.is_rest_day ? 'Ruhetag' : planDay.label) : null
 
           return (
             <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
               <span style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', fontWeight: 600 }}>{wd}</span>
               <div style={{
                 width: 34, height: 34, borderRadius: '50%',
-                background: isToday ? '#7c3aed' : 'transparent',
+                background: isToday ? accent : 'transparent',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 <span style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>{date.getDate()}</span>
               </div>
-              <span style={{
-                fontSize: 9, textAlign: 'center', lineHeight: 1.2,
-                color: planDay?.is_rest_day ? '#444' : '#7c3aed',
-                fontWeight: 500, maxWidth: 40, overflow: 'hidden',
-                textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
-                {planDay ? (planDay.is_rest_day ? 'Rest' : planDay.label) : '—'}
-              </span>
+              <div style={{ width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: planDay ? 1 : 0.15 }}>
+                {muscle
+                  ? getMuscleIcon(muscle, 16, planDay?.is_rest_day ? '#444' : isToday ? accent : '#666')
+                  : <span style={{ fontSize: 8, color: '#333' }}>—</span>
+                }
+              </div>
             </div>
           )
         })}

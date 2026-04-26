@@ -1,24 +1,17 @@
+import { useState } from 'react'
 import { ChevronRight, Dumbbell, Activity } from 'lucide-react'
 import { WeekCalendar } from '../components/WeekCalendar'
 import { Spinner } from '../components/Spinner'
+import { WorkoutSessionModal } from '../components/WorkoutSessionModal'
+import { getMuscleIcon, detectPrimaryMuscle } from '../components/MuscleIcons'
 import { useTrainingPlan } from '../hooks/useTrainingPlan'
 import { useTodayWorkout } from '../hooks/useTodayWorkout'
 import { Profile, TrainingDay, PlanExercise } from '../lib/supabase'
+import { useTheme } from '../context/ThemeContext'
 
 interface Props { userId: string; profile: Profile | null }
 
 const WD: { [k: number]: string } = { 1: 'Mo', 2: 'Di', 3: 'Mi', 4: 'Do', 5: 'Fr', 6: 'Sa', 0: 'So' }
-
-const MUSCLE_ICONS: { [k: string]: string } = {
-  Brust: '🫀', Rücken: '🦴', Schultern: '⚡', Bizeps: '💪', Trizeps: '🔱',
-  Beine: '🦵', Gesäß: '🍑', Core: '🎯', Sonstiges: '🏋️',
-}
-
-const DAY_EMOJI: { [k: string]: string } = {
-  Push: '💪', Pull: '🦴', Beine: '🦵',
-  'Schultern & Arme': '⚡', 'Brust & Rücken': '🤝',
-  Ganzkörper: '🏋️', Ruhetag: '😴',
-}
 
 const DAY_DESC: { [k: string]: string } = {
   Push: 'Fokus auf Brust, Schultern und Trizeps. Gib alles!',
@@ -30,35 +23,34 @@ const DAY_DESC: { [k: string]: string } = {
   Ruhetag: 'Heute erholt sich dein Körper. Regeneration ist Training!',
 }
 
-function BodySilhouette() {
-  return (
-    <svg width="90" height="120" viewBox="0 0 90 120" fill="none" opacity={0.35}>
-      <circle cx="45" cy="18" r="12" fill="#7c3aed" />
-      <rect x="28" y="32" width="34" height="40" rx="8" fill="#7c3aed" />
-      <rect x="10" y="34" width="16" height="30" rx="6" fill="#6b21d4" />
-      <rect x="64" y="34" width="16" height="30" rx="6" fill="#6b21d4" />
-      <rect x="30" y="74" width="12" height="38" rx="6" fill="#7c3aed" />
-      <rect x="48" y="74" width="12" height="38" rx="6" fill="#7c3aed" />
-    </svg>
-  )
-}
+function TodayCard({ day, exercises, onStartTraining }: { day: TrainingDay; exercises: PlanExercise[]; onStartTraining: () => void }) {
+  const { accent } = useTheme()
+  const muscle = detectPrimaryMuscle(exercises, day.is_rest_day ? 'Ruhetag' : day.label)
 
-function TodayCard({ day }: { day: TrainingDay }) {
   return (
     <div style={{ background: '#1a1a1a', borderRadius: 16, padding: 20, marginBottom: 16, position: 'relative', overflow: 'hidden' }}>
-      <div style={{ position: 'absolute', right: 16, bottom: 8, opacity: 0.6 }}>
-        <BodySilhouette />
+      {/* Background muscle icon */}
+      <div style={{ position: 'absolute', right: 20, bottom: 16, opacity: 0.12 }}>
+        {getMuscleIcon(muscle, 100, '#fff')}
       </div>
       <div style={{ position: 'relative', zIndex: 1 }}>
-        <div style={{ fontSize: 12, color: '#7c3aed', fontWeight: 700, letterSpacing: 0.5, marginBottom: 6, textTransform: 'uppercase' }}>
-          {day.is_rest_day ? 'Ruhetag' : 'Heute'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <div style={{ width: 28, height: 28, background: `${accent}22`, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {getMuscleIcon(muscle, 16, accent)}
+          </div>
+          <div style={{ fontSize: 12, color: accent, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>
+            {day.is_rest_day ? 'Ruhetag' : 'Heute'}
+          </div>
         </div>
         <h2 style={{ fontSize: 30, fontWeight: 800, color: '#fff', margin: '0 0 8px' }}>{day.label}</h2>
         <p style={{ fontSize: 14, color: '#888', margin: '0 0 20px', maxWidth: '65%', lineHeight: 1.4 }}>
           {DAY_DESC[day.label] || `${day.label} steht heute auf dem Plan!`}
         </p>
         {!day.is_rest_day && (
-          <button style={{ background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 18px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+          <button
+            onClick={onStartTraining}
+            style={{ background: accent, color: '#fff', border: 'none', borderRadius: 10, padding: '10px 18px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+          >
             Training starten
           </button>
         )}
@@ -68,6 +60,7 @@ function TodayCard({ day }: { day: TrainingDay }) {
 }
 
 function ExerciseList({ exercises, cardio }: { exercises: PlanExercise[]; cardio: { id: string; label: string; duration_minutes: number }[] }) {
+  const { accent } = useTheme()
   if (exercises.length === 0 && cardio.length === 0) return null
   return (
     <div style={{ background: '#1a1a1a', borderRadius: 16, padding: 16, marginBottom: 16 }}>
@@ -75,8 +68,8 @@ function ExerciseList({ exercises, cardio }: { exercises: PlanExercise[]; cardio
       <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
         {exercises.map((ex, i) => (
           <div key={ex.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: i < exercises.length - 1 || cardio.length > 0 ? '1px solid #222' : 'none' }}>
-            <div style={{ width: 40, height: 40, background: '#2a2a2a', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
-              {MUSCLE_ICONS[ex.muscle_group || ''] || '🏋️'}
+            <div style={{ width: 40, height: 40, background: '#2a2a2a', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              {getMuscleIcon(ex.muscle_group || 'Ganzkörper', 20, '#888')}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>{ex.name}</div>
@@ -91,8 +84,8 @@ function ExerciseList({ exercises, cardio }: { exercises: PlanExercise[]; cardio
         ))}
         {cardio.map(c => (
           <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0' }}>
-            <div style={{ width: 40, height: 40, background: 'rgba(124,58,237,0.15)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Activity size={20} color="#7c3aed" />
+            <div style={{ width: 40, height: 40, background: `${accent}22`, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Activity size={20} color={accent} />
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, color: '#888', fontWeight: 500 }}>{c.label} — {c.duration_minutes} Min</div>
@@ -110,28 +103,30 @@ function FlexiblePicker({ days, exercises, selectedDayId, onSelect }: {
   selectedDayId: string | null
   onSelect: (day: TrainingDay) => void
 }) {
+  const { accent } = useTheme()
   return (
     <div style={{ marginBottom: 16 }}>
       <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 10 }}>Was trainierst du heute?</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {days.map(day => {
           const isSelected = selectedDayId === day.id
-          const exCount = (exercises[day.id] || []).length
+          const dayExs = exercises[day.id] || []
+          const muscle = detectPrimaryMuscle(dayExs, day.is_rest_day ? 'Ruhetag' : day.label)
           return (
             <div key={day.id} onClick={() => onSelect(day)} style={{
               background: isSelected ? '#1e1535' : '#1a1a1a',
-              border: `1.5px solid ${isSelected ? '#7c3aed' : '#2a2a2a'}`,
+              border: `1.5px solid ${isSelected ? accent : '#2a2a2a'}`,
               borderRadius: 14, padding: '14px 16px',
               display: 'flex', alignItems: 'center', gap: 14,
               cursor: 'pointer', transition: 'all 0.15s',
             }}>
-              <div style={{ width: 44, height: 44, background: isSelected ? 'rgba(124,58,237,0.2)' : '#2a2a2a', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
-                {DAY_EMOJI[day.label] || '🏋️'}
+              <div style={{ width: 44, height: 44, background: isSelected ? `${accent}22` : '#2a2a2a', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {getMuscleIcon(muscle, 22, isSelected ? accent : '#666')}
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>{day.label}</div>
-                {!day.is_rest_day && exCount > 0 && (
-                  <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{exCount} Übungen</div>
+                {!day.is_rest_day && dayExs.length > 0 && (
+                  <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{dayExs.length} Übungen</div>
                 )}
                 {day.is_rest_day && (
                   <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>Erholen & regenerieren</div>
@@ -139,8 +134,8 @@ function FlexiblePicker({ days, exercises, selectedDayId, onSelect }: {
               </div>
               <div style={{
                 width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
-                background: isSelected ? '#7c3aed' : 'transparent',
-                border: `2px solid ${isSelected ? '#7c3aed' : '#444'}`,
+                background: isSelected ? accent : 'transparent',
+                border: `2px solid ${isSelected ? accent : '#444'}`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 {isSelected && <span style={{ color: '#fff', fontSize: 12, fontWeight: 900 }}>✓</span>}
@@ -154,15 +149,16 @@ function FlexiblePicker({ days, exercises, selectedDayId, onSelect }: {
 }
 
 export function TrainingPage({ userId, profile }: Props) {
+  const { accent } = useTheme()
   const { plan, days, exercises, cardioSessions, loading } = useTrainingPlan(userId)
-  const { todayLog, selectDay } = useTodayWorkout(userId)
+  const { todayLog, selectDay, refetch: refetchLog } = useTodayWorkout(userId)
   const isFlexible = profile?.plan_type === 'flexible'
+  const [sessionOpen, setSessionOpen] = useState(false)
 
   if (loading) return <Spinner />
 
   const todayWd = WD[new Date().getDay()]
 
-  // Resolve today's active training day
   const activeDay: TrainingDay | undefined = isFlexible
     ? (todayLog?.training_day_id ? days.find(d => d.id === todayLog.training_day_id) : undefined)
     : days.find(d => d.weekday === todayWd)
@@ -180,10 +176,9 @@ export function TrainingPage({ userId, profile }: Props) {
       </div>
 
       <div className="page-content" style={{ paddingTop: 16 }}>
-        {/* Week calendar — fixed mode only */}
         {!isFlexible && (
           <div style={{ marginBottom: 20 }}>
-            <WeekCalendar days={days} />
+            <WeekCalendar days={days} exercises={exercises} />
           </div>
         )}
 
@@ -201,14 +196,26 @@ export function TrainingPage({ userId, profile }: Props) {
               selectedDayId={todayLog?.training_day_id ?? null}
               onSelect={day => selectDay(day.label, day.is_rest_day, day.id)}
             />
-            {activeDay && <TodayCard day={activeDay} />}
+            {activeDay && (
+              <TodayCard
+                day={activeDay}
+                exercises={activeExercises}
+                onStartTraining={() => setSessionOpen(true)}
+              />
+            )}
             {activeDay && !activeDay.is_rest_day && (
               <ExerciseList exercises={activeExercises} cardio={[]} />
             )}
           </>
         ) : (
           <>
-            {activeDay && <TodayCard day={activeDay} />}
+            {activeDay && (
+              <TodayCard
+                day={activeDay}
+                exercises={activeExercises}
+                onStartTraining={() => setSessionOpen(true)}
+              />
+            )}
             {(activeExercises.length > 0 || activeCardio.length > 0) && (
               <ExerciseList exercises={activeExercises} cardio={activeCardio} />
             )}
@@ -216,24 +223,42 @@ export function TrainingPage({ userId, profile }: Props) {
             {/* Full week list */}
             <div style={{ background: '#1a1a1a', borderRadius: 16, padding: 16 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 12 }}>Wochenplan</div>
-              {days.map((day, i) => (
-                <div key={day.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: i < days.length - 1 ? '1px solid #1f1f1f' : 'none' }}>
-                  <div style={{ width: 36, height: 36, background: day.weekday === todayWd ? '#7c3aed' : '#2a2a2a', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>{day.weekday}</span>
+              {days.map((day, i) => {
+                const dayExs = exercises[day.id] || []
+                const muscle = detectPrimaryMuscle(dayExs, day.is_rest_day ? 'Ruhetag' : day.label)
+                return (
+                  <div key={day.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: i < days.length - 1 ? '1px solid #1f1f1f' : 'none' }}>
+                    <div style={{ width: 36, height: 36, background: day.weekday === todayWd ? accent : '#2a2a2a', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>{day.weekday}</span>
+                    </div>
+                    <div style={{ width: 28, height: 28, background: '#2a2a2a', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {getMuscleIcon(muscle, 16, day.is_rest_day ? '#444' : '#888')}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: day.is_rest_day ? '#555' : '#fff' }}>{day.label}</div>
+                      {!day.is_rest_day && dayExs.length > 0 && (
+                        <div style={{ fontSize: 12, color: '#666' }}>{dayExs.length} Übungen</div>
+                      )}
+                    </div>
+                    <ChevronRight size={16} color="#333" />
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: day.is_rest_day ? '#555' : '#fff' }}>{day.label}</div>
-                    {!day.is_rest_day && exercises[day.id]?.length > 0 && (
-                      <div style={{ fontSize: 12, color: '#666' }}>{exercises[day.id].length} Übungen</div>
-                    )}
-                  </div>
-                  <ChevronRight size={16} color="#333" />
-                </div>
-              ))}
+                )
+              })}
             </div>
           </>
         )}
       </div>
+
+      {sessionOpen && activeDay && !activeDay.is_rest_day && (
+        <WorkoutSessionModal
+          userId={userId}
+          workoutLogId={todayLog?.id ?? null}
+          dayLabel={activeDay.label}
+          exercises={activeExercises}
+          onClose={() => setSessionOpen(false)}
+          onComplete={() => { setSessionOpen(false); refetchLog() }}
+        />
+      )}
     </div>
   )
 }

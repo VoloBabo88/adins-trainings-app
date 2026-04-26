@@ -1,12 +1,14 @@
 import { useState } from 'react'
-import { Plus, Flame, Beef, Wheat, Droplet, Trash2, Dumbbell } from 'lucide-react'
+import { Plus, Flame, Beef, Wheat, Droplet, Trash2, Dumbbell, ScanLine } from 'lucide-react'
 import { MacroRing } from '../components/MacroRing'
 import { Modal } from '../components/Modal'
 import { Spinner } from '../components/Spinner'
+import { BarcodeScannerModal } from '../components/BarcodeScannerModal'
 import { useMeals } from '../hooks/useMeals'
 import { useTodayWorkout } from '../hooks/useTodayWorkout'
 import { Profile } from '../lib/supabase'
 import { showToast } from '../components/Toast'
+import { useTheme } from '../context/ThemeContext'
 
 interface Props { userId: string; profile: Profile | null }
 type SubTab = 'uebersicht' | 'training' | 'ruhetag'
@@ -23,7 +25,7 @@ function GoalSection({ label, cal, prot, carbs, fat }: { label: string; cal: num
         { icon: <Flame size={15} color="#f97316" />, label: 'Kalorien',       value: `${cal} kcal`  },
         { icon: <Beef  size={15} color="#22c55e" />, label: 'Protein',        value: `${prot} g`    },
         { icon: <Wheat size={15} color="#eab308" />, label: 'Kohlenhydrate',  value: `${carbs} g`   },
-        { icon: <Droplet size={15} color="#7c3aed"/>,label: 'Fett',           value: `${fat} g`     },
+        { icon: <Droplet size={15} color="var(--accent)"/>, label: 'Fett',    value: `${fat} g`     },
       ].map((row, i, arr) => (
         <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 0', borderBottom: i < arr.length - 1 ? '1px solid #2a2a2a' : 'none' }}>
           {row.icon}
@@ -36,8 +38,10 @@ function GoalSection({ label, cal, prot, carbs, fat }: { label: string; cal: num
 }
 
 export function ErnährungPage({ userId, profile }: Props) {
+  const { accent } = useTheme()
   const [subTab, setSubTab] = useState<SubTab>('uebersicht')
   const [modalOpen, setModalOpen] = useState(false)
+  const [scannerOpen, setScannerOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const today = new Date().toISOString().split('T')[0]
   const { meals, loading, addMeal, deleteMeal } = useMeals(userId, today)
@@ -46,7 +50,6 @@ export function ErnährungPage({ userId, profile }: Props) {
   const isFlexible = profile?.plan_type === 'flexible'
   const { todayLog, loading: logLoading } = useTodayWorkout(userId)
 
-  // Determine day type: 'training' | 'rest' | 'unknown'
   const dayType = isFlexible
     ? todayLog === undefined || logLoading
       ? 'unknown'
@@ -86,6 +89,24 @@ export function ErnährungPage({ userId, profile }: Props) {
     }
   }
 
+  const openManualModal = () => {
+    setForm({ mealType: 'Frühstück', name: '', calories: '', protein: '', carbs: '', fat: '' })
+    setModalOpen(true)
+  }
+
+  const handleProductScanned = (data: { name: string; calories: number; protein: number; carbs: number; fat: number }) => {
+    setScannerOpen(false)
+    setForm({
+      mealType: 'Snack',
+      name: data.name,
+      calories: String(data.calories),
+      protein: String(data.protein),
+      carbs: String(data.carbs),
+      fat: String(data.fat),
+    })
+    setModalOpen(true)
+  }
+
   const inpStyle: React.CSSProperties = { background: '#2a2a2a', border: '1px solid #333', borderRadius: 10, padding: '12px 16px', color: '#fff', width: '100%', fontFamily: 'inherit', fontSize: 15 }
 
   const TABS: { id: SubTab; label: string }[] = [
@@ -101,7 +122,7 @@ export function ErnährungPage({ userId, profile }: Props) {
         <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
           {TABS.map(t => (
             <button key={t.id} onClick={() => setSubTab(t.id)} style={{
-              background: subTab === t.id ? '#7c3aed' : 'transparent',
+              background: subTab === t.id ? accent : 'transparent',
               color: subTab === t.id ? '#fff' : '#888',
               border: 'none', borderRadius: 20, padding: '8px 18px',
               fontSize: 14, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
@@ -118,7 +139,6 @@ export function ErnährungPage({ userId, profile }: Props) {
 
         {!loading && !logLoading && subTab === 'uebersicht' && (
           <>
-            {/* Flexible mode — no selection yet */}
             {isFlexible && dayType === 'unknown' && (
               <div style={{ background: '#1a1a1a', borderRadius: 16, padding: 28, textAlign: 'center', marginBottom: 16 }}>
                 <Dumbbell size={36} color="#555" style={{ marginBottom: 12 }} />
@@ -131,10 +151,9 @@ export function ErnährungPage({ userId, profile }: Props) {
               </div>
             )}
 
-            {/* Calories banner + macros — hidden until day type is known */}
             {dayType !== 'unknown' && <>
               <div style={{ background: '#1a1a1a', borderRadius: 16, padding: 16, marginBottom: 16 }}>
-                <div style={{ fontSize: 13, color: '#7c3aed', fontWeight: 700, marginBottom: 10 }}>
+                <div style={{ fontSize: 13, color: accent, fontWeight: 700, marginBottom: 10 }}>
                   🔥 Heute — {restDay ? 'Ruhetag' : 'Trainingstag'}
                 </div>
                 <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>Kalorien</div>
@@ -142,7 +161,7 @@ export function ErnährungPage({ userId, profile }: Props) {
                   {totalCal.toLocaleString()} <span style={{ fontSize: 16, color: '#888', fontWeight: 400 }}>/ {calGoal.toLocaleString()} kcal</span>
                 </div>
                 <div style={{ background: '#2a2a2a', borderRadius: 4, height: 6, marginBottom: 8, overflow: 'hidden' }}>
-                  <div style={{ width: `${pct * 100}%`, height: '100%', background: pct >= 1 ? '#ef4444' : '#7c3aed', borderRadius: 4, transition: 'width 0.4s' }} />
+                  <div style={{ width: `${pct * 100}%`, height: '100%', background: pct >= 1 ? '#ef4444' : accent, borderRadius: 4, transition: 'width 0.4s' }} />
                 </div>
                 <div style={{ fontSize: 13, color: '#888' }}>{Math.max(0, calGoal - totalCal).toLocaleString()} kcal übrig</div>
               </div>
@@ -150,7 +169,7 @@ export function ErnährungPage({ userId, profile }: Props) {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
                 <MacroRing value={Math.round(totalProt)}  max={protGoal} color="#22c55e" label="Protein" unit="g" />
                 <MacroRing value={Math.round(totalCarbs)} max={carbGoal} color="#eab308" label="Carbs"   unit="g" />
-                <MacroRing value={Math.round(totalFat)}   max={fatGoal}  color="#7c3aed" label="Fett"    unit="g" />
+                <MacroRing value={Math.round(totalFat)}   max={fatGoal}  color={accent}  label="Fett"    unit="g" />
               </div>
 
               <div style={{ background: '#1a1a1a', borderRadius: 16, padding: 16, marginBottom: 16 }}>
@@ -159,7 +178,7 @@ export function ErnährungPage({ userId, profile }: Props) {
                   { icon: <Flame size={15} color="#f97316" />, label: 'Kalorien',      value: `${calGoal} kcal`  },
                   { icon: <Beef  size={15} color="#22c55e" />, label: 'Protein',       value: `${protGoal} g`    },
                   { icon: <Wheat size={15} color="#eab308" />, label: 'Kohlenhydrate', value: `${carbGoal} g`    },
-                  { icon: <Droplet size={15} color="#7c3aed"/>,label: 'Fett',          value: `${fatGoal} g`     },
+                  { icon: <Droplet size={15} color={accent}/>, label: 'Fett',          value: `${fatGoal} g`     },
                 ].map((row, i, arr) => (
                   <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: i < arr.length - 1 ? '1px solid #2a2a2a' : 'none' }}>
                     {row.icon}
@@ -174,9 +193,18 @@ export function ErnährungPage({ userId, profile }: Props) {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <span style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>Deine Mahlzeiten</span>
-                <button onClick={() => setModalOpen(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7c3aed', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>
-                  + Hinzufügen
-                </button>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <button
+                    onClick={() => setScannerOpen(true)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: accent, padding: 4, display: 'flex', alignItems: 'center' }}
+                    title="Barcode scannen"
+                  >
+                    <ScanLine size={20} />
+                  </button>
+                  <button onClick={openManualModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: accent, fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>
+                    + Hinzufügen
+                  </button>
+                </div>
               </div>
               {meals.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '24px 0', color: '#555', fontSize: 14 }}>Noch keine Mahlzeiten eingetragen.</div>
@@ -197,7 +225,7 @@ export function ErnährungPage({ userId, profile }: Props) {
                 </div>
               ))}
               {meals.length > 0 && (
-                <button className="btn-outline" onClick={() => setModalOpen(true)}
+                <button className="btn-outline" onClick={openManualModal}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8 }}>
                   <Plus size={18} /> Mahlzeit hinzufügen
                 </button>
@@ -219,6 +247,15 @@ export function ErnährungPage({ userId, profile }: Props) {
         )}
       </div>
 
+      {/* Barcode scanner */}
+      {scannerOpen && (
+        <BarcodeScannerModal
+          onClose={() => setScannerOpen(false)}
+          onProduct={handleProductScanned}
+        />
+      )}
+
+      {/* Add meal modal */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Mahlzeit hinzufügen">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>

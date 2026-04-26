@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from './hooks/useAuth'
 import { useProfile } from './hooks/useProfile'
 import { Profile } from './lib/supabase'
@@ -12,6 +12,7 @@ import { MehrPage } from './pages/MehrPage'
 import { BottomNav } from './components/BottomNav'
 import { Spinner } from './components/Spinner'
 import { ToastContainer } from './components/Toast'
+import { ThemeProvider, useTheme } from './context/ThemeContext'
 
 type Tab = 'training' | 'fortschritt' | 'ernaehrung' | 'profil' | 'mehr'
 
@@ -26,6 +27,11 @@ function FullSpinner() {
 function MainApp({ userId, onSignOut }: { userId: string; onSignOut: () => void }) {
   const [tab, setTab] = useState<Tab>('training')
   const { profile, loading, updateProfile, refetch } = useProfile(userId)
+  const { setAccent } = useTheme()
+
+  useEffect(() => {
+    if (profile?.accent_color) setAccent(profile.accent_color)
+  }, [profile?.accent_color])
 
   if (loading) return <FullSpinner />
 
@@ -64,5 +70,9 @@ export default function App() {
     return <div className="app-container"><OnboardingWrapper userId={user.id} onComplete={refetch} /><ToastContainer /></div>
   }
 
-  return <MainApp userId={user.id} onSignOut={signOut} />
+  return (
+    <ThemeProvider initialAccent={profile?.accent_color || '#7c3aed'}>
+      <MainApp userId={user.id} onSignOut={signOut} />
+    </ThemeProvider>
+  )
 }
