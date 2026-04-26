@@ -219,7 +219,7 @@ export function ErnährungPage({ userId, profile }: Props) {
                     <div style={{ fontSize: 12, color: '#888' }}>{meal.meal_type} · P:{meal.protein_g}g K:{meal.carbs_g}g F:{meal.fat_g}g</div>
                   </div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', flexShrink: 0 }}>{meal.calories} kcal</div>
-                  <button onClick={() => deleteMeal(meal.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#555', padding: 4 }}>
+                  <button onClick={async () => { const r = await deleteMeal(meal.id); if (r?.error) showToast('Löschen fehlgeschlagen', 'error') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#555', padding: 4 }}>
                     <Trash2 size={16} />
                   </button>
                 </div>

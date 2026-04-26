@@ -31,7 +31,7 @@ function MainApp({ userId, onSignOut }: { userId: string; onSignOut: () => void 
 
   useEffect(() => {
     if (profile?.accent_color) setAccent(profile.accent_color)
-  }, [profile?.accent_color])
+  }, [profile?.accent_color, setAccent])
 
   if (loading) return <FullSpinner />
 

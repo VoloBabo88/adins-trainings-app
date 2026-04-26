@@ -189,7 +189,6 @@ export function OnboardingWrapper({ userId, onComplete }: Props) {
       showToast('Plan erfolgreich erstellt!', 'success')
       onComplete()
     } catch (err) {
-      console.error('Onboarding save error:', err)
       showToast(err instanceof Error ? err.message : 'Fehler beim Speichern. Bitte versuche es erneut.', 'error')
     }
     setSaving(false)

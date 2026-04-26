@@ -1,4 +1,5 @@
 import { Dumbbell, TrendingUp, UtensilsCrossed, User, MoreHorizontal } from 'lucide-react'
+import { useTheme } from '../context/ThemeContext'
 
 type Tab = 'training' | 'fortschritt' | 'ernaehrung' | 'profil' | 'mehr'
 
@@ -16,6 +17,7 @@ const TABS: { id: Tab; icon: typeof Dumbbell; label: string }[] = [
 ]
 
 export function BottomNav({ active, onChange }: BottomNavProps) {
+  const { accent } = useTheme()
   return (
     <nav style={{
       position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
@@ -29,7 +31,7 @@ export function BottomNav({ active, onChange }: BottomNavProps) {
           background: 'none', border: 'none', cursor: 'pointer',
           display: 'flex', flexDirection: 'column', alignItems: 'center',
           justifyContent: 'center', gap: 3,
-          color: active === id ? '#7c3aed' : '#555',
+          color: active === id ? accent : '#555',
           transition: 'color 0.2s',
         }}>
           <Icon size={22} />

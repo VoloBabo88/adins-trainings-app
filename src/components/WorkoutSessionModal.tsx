@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { X, Plus, Check, Timer, Dumbbell } from 'lucide-react'
+import { X, Plus, Check, Timer, Dumbbell, AlertTriangle } from 'lucide-react'
 import { PlanExercise, supabase } from '../lib/supabase'
 import { showToast } from './Toast'
 import { useTheme } from '../context/ThemeContext'
@@ -39,6 +39,8 @@ export function WorkoutSessionModal({ userId, workoutLogId, dayLabel, exercises,
   const [restTimer, setRestTimer] = useState<number | null>(null)
   const restIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [saving, setSaving] = useState(false)
+  const [confirmClose, setConfirmClose] = useState(false)
+  const [confirmFinish, setConfirmFinish] = useState(false)
 
   const [exerciseStates, setExerciseStates] = useState<ExerciseState[]>(() =>
     exercises.map(ex => ({
@@ -96,22 +98,24 @@ export function WorkoutSessionModal({ userId, workoutLogId, dayLabel, exercises,
   }
 
   const handleFinish = async () => {
+    setConfirmFinish(false)
     setSaving(true)
     const durationMin = Math.max(1, Math.round(elapsed / 60))
     const today = new Date().toISOString().split('T')[0]
 
     try {
       let logId = workoutLogId
-
       if (logId) {
         await supabase.from('workout_logs').update({ completed: true, duration_minutes: durationMin }).eq('id', logId)
       } else {
-        const { data } = await supabase.from('workout_logs').insert({
+        const { data, error } = await supabase.from('workout_logs').insert({
           user_id: userId, date: today, label: dayLabel, completed: true, duration_minutes: durationMin,
         }).select().single()
+        if (error) throw error
         logId = data?.id ?? null
       }
 
+      // workout_sets insert is best-effort — table may not exist yet
       if (logId) {
         const rows = exerciseStates.flatMap(es =>
           es.sets
@@ -127,7 +131,7 @@ export function WorkoutSessionModal({ userId, workoutLogId, dayLabel, exercises,
             }))
         )
         if (rows.length > 0) {
-          await supabase.from('workout_sets').insert(rows)
+          await supabase.from('workout_sets').insert(rows).then(() => {})
         }
       }
 
@@ -150,7 +154,7 @@ export function WorkoutSessionModal({ userId, workoutLogId, dayLabel, exercises,
       {/* Header */}
       <div style={{ padding: '16px 16px 12px', paddingTop: 'calc(16px + env(safe-area-inset-top))', background: '#111', borderBottom: '1px solid #1f1f1f', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', padding: 4 }}>
+          <button onClick={() => setConfirmClose(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', padding: 4 }}>
             <X size={22} />
           </button>
           <div style={{ textAlign: 'center' }}>
@@ -201,7 +205,6 @@ export function WorkoutSessionModal({ userId, workoutLogId, dayLabel, exercises,
               </div>
             </div>
 
-            {/* Column headers */}
             <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 1fr 38px', gap: 6, marginBottom: 8 }}>
               <span style={{ fontSize: 10, color: '#555', textAlign: 'center', textTransform: 'uppercase' }}>Satz</span>
               <span style={{ fontSize: 10, color: '#555', textAlign: 'center', textTransform: 'uppercase' }}>kg</span>
@@ -254,13 +257,57 @@ export function WorkoutSessionModal({ userId, workoutLogId, dayLabel, exercises,
 
         <button
           className="btn-primary"
-          onClick={handleFinish}
+          onClick={() => setConfirmFinish(true)}
           disabled={saving}
           style={{ marginTop: 8, marginBottom: 'calc(16px + env(safe-area-inset-bottom))' }}
         >
           {saving ? 'Wird gespeichert…' : 'Training beenden'}
         </button>
       </div>
+
+      {/* Confirm: abandon workout */}
+      {confirmClose && (
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 10, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+          <div style={{ background: '#1a1a1a', borderRadius: '20px 20px 0 0', padding: '24px 20px', width: '100%', maxWidth: 430, paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+              <AlertTriangle size={36} color="#f97316" />
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#fff', textAlign: 'center' }}>Training abbrechen?</div>
+              <div style={{ fontSize: 14, color: '#888', textAlign: 'center' }}>Dein Fortschritt in dieser Einheit wird nicht gespeichert.</div>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setConfirmClose(false)} style={{ flex: 1, background: '#2a2a2a', border: 'none', borderRadius: 12, padding: 14, color: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                Weitermachen
+              </button>
+              <button onClick={onClose} style={{ flex: 1, background: '#3a1a1a', border: '1px solid #5a2a2a', borderRadius: 12, padding: 14, color: '#ef4444', fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                Abbrechen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm: finish workout */}
+      {confirmFinish && (
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 10, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+          <div style={{ background: '#1a1a1a', borderRadius: '20px 20px 0 0', padding: '24px 20px', width: '100%', maxWidth: 430, paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+              <div style={{ fontSize: 36 }}>💪</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#fff', textAlign: 'center' }}>Training beenden?</div>
+              <div style={{ fontSize: 14, color: '#888', textAlign: 'center' }}>
+                Dauer: {formatTime(elapsed)} · Alle Sets werden gespeichert.
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setConfirmFinish(false)} style={{ flex: 1, background: '#2a2a2a', border: 'none', borderRadius: 12, padding: 14, color: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                Zurück
+              </button>
+              <button onClick={handleFinish} disabled={saving} style={{ flex: 1, background: accent, border: 'none', borderRadius: 12, padding: 14, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', opacity: saving ? 0.5 : 1 }}>
+                {saving ? 'Speichern…' : 'Speichern'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

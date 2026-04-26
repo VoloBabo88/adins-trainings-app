@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { User, Dumbbell, BarChart2, Target, ChevronRight, LogOut, Clock, Calendar, Check } from 'lucide-react'
+import { User, Dumbbell, BarChart2, Target, ChevronRight, LogOut, Clock, Calendar, Check, AlertTriangle } from 'lucide-react'
 import { Modal } from '../components/Modal'
 import { Profile } from '../lib/supabase'
 import { showToast } from '../components/Toast'
 import { useWorkoutLogs } from '../hooks/useWorkoutLogs'
+import { useTheme } from '../context/ThemeContext'
 
 interface Props {
   userId: string
@@ -22,12 +23,14 @@ const GOALS = [
 ]
 
 export function ProfilPage({ userId, profile, onSignOut, onTabChange, onUpdateProfile }: Props) {
+  const { accent } = useTheme()
   const { logs } = useWorkoutLogs(userId)
-  const [editOpen, setEditOpen]   = useState(false)
-  const [goalOpen, setGoalOpen]   = useState(false)
-  const [editName, setEditName]   = useState(profile?.username || '')
-  const [editMotto, setEditMotto] = useState(profile?.motto || '')
-  const [selGoal, setSelGoal]     = useState(profile?.main_goal || 'Muskelaufbau')
+  const [editOpen, setEditOpen]         = useState(false)
+  const [goalOpen, setGoalOpen]         = useState(false)
+  const [signOutOpen, setSignOutOpen]   = useState(false)
+  const [editName, setEditName]         = useState(profile?.username || '')
+  const [editMotto, setEditMotto]       = useState(profile?.motto || '')
+  const [selGoal, setSelGoal]           = useState(profile?.main_goal || 'Muskelaufbau')
 
   const initials = (profile?.username || 'U').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
   const completed = logs.filter(l => l.completed).length
@@ -48,7 +51,7 @@ export function ProfilPage({ userId, profile, onSignOut, onTabChange, onUpdatePr
 
   const MenuItem = ({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) => (
     <div onClick={onClick} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 16px', cursor: 'pointer', borderBottom: '1px solid #222' }}>
-      <div style={{ width: 36, height: 36, background: 'rgba(124,58,237,0.12)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7c3aed', flexShrink: 0 }}>
+      <div style={{ width: 36, height: 36, background: `${accent}1a`, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', color: accent, flexShrink: 0 }}>
         {icon}
       </div>
       <span style={{ flex: 1, fontSize: 15, color: '#fff', fontWeight: 500 }}>{label}</span>
@@ -65,7 +68,7 @@ export function ProfilPage({ userId, profile, onSignOut, onTabChange, onUpdatePr
       <div className="page-content" style={{ paddingTop: 24 }}>
         {/* Avatar */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 32 }}>
-          <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'linear-gradient(135deg,#7c3aed,#4c1d95)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+          <div style={{ width: 80, height: 80, borderRadius: '50%', background: `linear-gradient(135deg,${accent},${accent}88)`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
             <span style={{ fontSize: 28, fontWeight: 700, color: '#fff' }}>{initials}</span>
           </div>
           <div style={{ fontSize: 22, fontWeight: 700, color: '#fff', marginBottom: 4 }}>{profile?.username || 'Nutzer'}</div>
@@ -100,7 +103,7 @@ export function ProfilPage({ userId, profile, onSignOut, onTabChange, onUpdatePr
         </div>
 
         {/* Sign out */}
-        <button onClick={onSignOut} style={{ width: '100%', background: '#1a0a0a', border: '1px solid #3a1a1a', borderRadius: 12, padding: 16, color: '#ef4444', fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 24 }}>
+        <button onClick={() => setSignOutOpen(true)} style={{ width: '100%', background: '#1a0a0a', border: '1px solid #3a1a1a', borderRadius: 12, padding: 16, color: '#ef4444', fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 24 }}>
           <LogOut size={18} /> Ausloggen
         </button>
       </div>
@@ -126,16 +129,33 @@ export function ProfilPage({ userId, profile, onSignOut, onTabChange, onUpdatePr
           {GOALS.map(g => (
             <div key={g.id} onClick={() => setSelGoal(g.id)} style={{
               background: selGoal === g.id ? '#1e1535' : '#2a2a2a',
-              border: `1.5px solid ${selGoal === g.id ? '#7c3aed' : 'transparent'}`,
+              border: `1.5px solid ${selGoal === g.id ? accent : 'transparent'}`,
               borderRadius: 12, padding: '14px 16px',
               display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer',
             }}>
               <span style={{ fontSize: 22 }}>{g.emoji}</span>
               <span style={{ flex: 1, fontSize: 15, fontWeight: 600, color: '#fff' }}>{g.title}</span>
-              {selGoal === g.id && <Check size={18} color="#7c3aed" />}
+              {selGoal === g.id && <Check size={18} color={accent} />}
             </div>
           ))}
           <button className="btn-primary" onClick={() => save({ main_goal: selGoal }, () => setGoalOpen(false))} style={{ marginTop: 8 }}>Speichern</button>
+        </div>
+      </Modal>
+
+      {/* Sign-out confirmation */}
+      <Modal open={signOutOpen} onClose={() => setSignOutOpen(false)}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '8px 0 16px' }}>
+          <AlertTriangle size={36} color="#ef4444" />
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#fff', textAlign: 'center' }}>Ausloggen?</div>
+          <div style={{ fontSize: 14, color: '#888', textAlign: 'center' }}>Du wirst aus deinem Konto abgemeldet.</div>
+          <div style={{ display: 'flex', gap: 10, width: '100%', marginTop: 8 }}>
+            <button onClick={() => setSignOutOpen(false)} style={{ flex: 1, background: '#2a2a2a', border: 'none', borderRadius: 12, padding: 14, color: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              Abbrechen
+            </button>
+            <button onClick={onSignOut} style={{ flex: 1, background: '#1a0a0a', border: '1px solid #3a1a1a', borderRadius: 12, padding: 14, color: '#ef4444', fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              Ausloggen
+            </button>
+          </div>
         </div>
       </Modal>
     </div>

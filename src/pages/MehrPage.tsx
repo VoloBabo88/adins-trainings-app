@@ -73,7 +73,7 @@ export function MehrPage({ profile, onUpdateProfile }: Props) {
 
         <SectionLabel label="Design" />
         <div style={{ background: '#1a1a1a', borderRadius: 16, overflow: 'hidden' }}>
-          <div onClick={() => setSettingsOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px', cursor: 'pointer', borderBottom: '1px solid #222' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px', borderBottom: '1px solid #222' }}>
             <div style={{ width: 36, height: 36, background: '#2a2a2a', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', flexShrink: 0 }}>
               <Palette size={18} />
             </div>

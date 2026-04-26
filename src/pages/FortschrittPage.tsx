@@ -5,6 +5,7 @@ import { Modal } from '../components/Modal'
 import { Spinner } from '../components/Spinner'
 import { useBodyLogs } from '../hooks/useBodyLogs'
 import { showToast } from '../components/Toast'
+import { useTheme } from '../context/ThemeContext'
 
 interface Props { userId: string }
 type SubTab = 'uebersicht' | 'gewicht' | 'koerperfett' | 'fotos'
@@ -70,6 +71,7 @@ function StatCard({ title, value, unit, diff, trendGoodWhenDown }: { title: stri
 }
 
 export function FortschrittPage({ userId }: Props) {
+  const { accent } = useTheme()
   const [subTab, setSubTab] = useState<SubTab>('uebersicht')
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState({ date: new Date().toISOString().split('T')[0], weight: '', bodyFat: '', muscleMass: '' })
@@ -83,11 +85,15 @@ export function FortschrittPage({ userId }: Props) {
 
   const last = logs[logs.length - 1]
   const prev = logs[logs.length - 2]
-  const wDiff  = last?.weight     && prev?.weight     ? Number(last.weight)      - Number(prev.weight)     : null
-  const fDiff  = last?.body_fat   && prev?.body_fat   ? Number(last.body_fat)    - Number(prev.body_fat)   : null
+  const wDiff  = last?.weight      && prev?.weight      ? Number(last.weight)      - Number(prev.weight)      : null
+  const fDiff  = last?.body_fat    && prev?.body_fat    ? Number(last.body_fat)    - Number(prev.body_fat)    : null
   const mDiff  = last?.muscle_mass && prev?.muscle_mass ? Number(last.muscle_mass) - Number(prev.muscle_mass) : null
 
   const handleSave = async () => {
+    if (!form.weight && !form.bodyFat && !form.muscleMass) {
+      showToast('Mindestens einen Wert eingeben', 'error')
+      return
+    }
     setSaving(true)
     const res = await addLog({
       date: form.date,
@@ -97,7 +103,11 @@ export function FortschrittPage({ userId }: Props) {
     })
     setSaving(false)
     if (res?.error) showToast('Fehler beim Speichern', 'error')
-    else { showToast('Eintrag gespeichert!', 'success'); setModalOpen(false) }
+    else {
+      showToast('Eintrag gespeichert!', 'success')
+      setModalOpen(false)
+      setForm({ date: new Date().toISOString().split('T')[0], weight: '', bodyFat: '', muscleMass: '' })
+    }
   }
 
   const TABS: { id: SubTab; label: string }[] = [
@@ -116,7 +126,7 @@ export function FortschrittPage({ userId }: Props) {
         <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
           {TABS.map(t => (
             <button key={t.id} onClick={() => setSubTab(t.id)} style={{
-              background: subTab === t.id ? '#7c3aed' : 'transparent',
+              background: subTab === t.id ? accent : 'transparent',
               color: subTab === t.id ? '#fff' : '#888',
               border: 'none', borderRadius: 20, padding: '8px 18px',
               fontSize: 14, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
@@ -138,8 +148,8 @@ export function FortschrittPage({ userId }: Props) {
               <StatCard title="Körperfett"  value={last?.body_fat    ? String(last.body_fat)    : '—'} unit="%" diff={fDiff} trendGoodWhenDown={true}  />
               <StatCard title="Muskelmasse" value={last?.muscle_mass ? String(last.muscle_mass) : '—'} unit="kg" diff={mDiff} trendGoodWhenDown={false} />
             </div>
-            <ChartCard title="Gewichtsverlauf"    subtitle="Letzte 30 Tage" data={weightData} color="#7c3aed" />
-            <ChartCard title="Körperfettverlauf"  subtitle="Letzte 30 Tage" data={fatData}    color="#ef4444" />
+            <ChartCard title="Gewichtsverlauf"   subtitle="Letzte 30 Tage" data={weightData} color={accent} />
+            <ChartCard title="Körperfettverlauf" subtitle="Letzte 30 Tage" data={fatData}    color="#ef4444" />
           </>
         )}
 
@@ -147,9 +157,12 @@ export function FortschrittPage({ userId }: Props) {
           <>
             <ChartCard title="Gewichtsverlauf" subtitle={`${logs.filter(l => l.weight).length} Einträge`}
               data={logs.filter(l => l.weight != null).map(l => ({ date: l.date, value: Number(l.weight) }))}
-              color="#7c3aed" height={280} />
+              color={accent} height={280} />
             <div style={{ background: '#1a1a1a', borderRadius: 16, padding: 16 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 12 }}>Alle Einträge</div>
+              {logs.filter(l => l.weight).length === 0 && (
+                <div style={{ fontSize: 13, color: '#555', textAlign: 'center', padding: '16px 0' }}>Noch keine Einträge</div>
+              )}
               {logs.filter(l => l.weight).map((l, i, arr) => {
                 const p = arr[i - 1]
                 const d = p?.weight && l.weight ? (Number(l.weight) - Number(p.weight)) : null
@@ -171,6 +184,9 @@ export function FortschrittPage({ userId }: Props) {
               data={logs.filter(l => l.body_fat != null).map(l => ({ date: l.date, value: Number(l.body_fat) }))}
               color="#ef4444" height={280} />
             <div style={{ background: '#1a1a1a', borderRadius: 16, padding: 16 }}>
+              {logs.filter(l => l.body_fat).length === 0 && (
+                <div style={{ fontSize: 13, color: '#555', textAlign: 'center', padding: '16px 0' }}>Noch keine Einträge</div>
+              )}
               {logs.filter(l => l.body_fat).map((l, i, arr) => (
                 <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: i < arr.length - 1 ? '1px solid #2a2a2a' : 'none' }}>
                   <span style={{ fontSize: 14, color: '#888' }}>{fmt(l.date)}</span>
@@ -213,6 +229,7 @@ export function FortschrittPage({ userId }: Props) {
                 style={inpStyle} />
             </div>
           ))}
+          <div style={{ fontSize: 12, color: '#555', marginTop: -4 }}>Mindestens einen Wert eingeben.</div>
           <button className="btn-primary" onClick={handleSave} disabled={saving}>
             {saving ? 'Speichern…' : 'Speichern'}
           </button>

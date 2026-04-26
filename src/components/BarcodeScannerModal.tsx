@@ -26,6 +26,8 @@ export function BarcodeScannerModal({ onClose, onProduct }: Props) {
   const streamRef = useRef<MediaStream | null>(null)
   const rafRef = useRef<number>(0)
   const doneRef = useRef(false)
+  const onProductRef = useRef(onProduct)
+  useEffect(() => { onProductRef.current = onProduct }, [onProduct])
 
   const [status, setStatus] = useState<'starting' | 'scanning' | 'fetching' | 'error'>('starting')
   const [errorMsg, setErrorMsg] = useState('')
@@ -61,10 +63,10 @@ export function BarcodeScannerModal({ onClose, onProduct }: Props) {
               return
             }
           } catch { /* ignore frame errors */ }
-          if (!doneRef.current) rafRef.current = requestAnimationFrame(scan)
+          if (!doneRef.current) rafRef.current = window.setTimeout(scan, 200) as unknown as number
         }
 
-        rafRef.current = requestAnimationFrame(scan)
+        rafRef.current = window.setTimeout(scan, 200) as unknown as number
       } catch (e) {
         setStatus('error')
         setErrorMsg('Kamera konnte nicht geöffnet werden. Bitte Kamerazugriff erlauben.')
@@ -75,7 +77,7 @@ export function BarcodeScannerModal({ onClose, onProduct }: Props) {
 
     return () => {
       doneRef.current = true
-      cancelAnimationFrame(rafRef.current)
+      clearTimeout(rafRef.current)
       stopStream()
     }
   }, [])
@@ -93,7 +95,7 @@ export function BarcodeScannerModal({ onClose, onProduct }: Props) {
       if (json.status === 1 && json.product) {
         const p = json.product
         const n = p.nutriments
-        onProduct({
+        onProductRef.current({
           name: p.product_name_de || p.product_name || barcode,
           calories: Math.round(n?.['energy-kcal_100g'] ?? n?.['energy-kcal'] ?? 0),
           protein: Math.round(n?.proteins_100g ?? 0),

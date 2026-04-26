@@ -24,8 +24,10 @@ export function useMeals(userId: string | undefined, date: string) {
   }
 
   const deleteMeal = async (id: string) => {
-    await supabase.from('meals').delete().eq('id', id)
+    const { error } = await supabase.from('meals').delete().eq('id', id)
+    if (error) return { error }
     setMeals(prev => prev.filter(m => m.id !== id))
+    return { error: null }
   }
 
   return { meals, loading, refetch: fetchMeals, addMeal, deleteMeal }
