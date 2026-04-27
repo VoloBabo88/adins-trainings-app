@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Plus, Flame, Beef, Wheat, Droplet, Trash2, Dumbbell, ScanLine } from 'lucide-react'
+import { Plus, Flame, Beef, Wheat, Droplet, Trash2, Dumbbell, ScanLine, Sparkles } from 'lucide-react'
 import { MacroRing } from '../components/MacroRing'
 import { Modal } from '../components/Modal'
 import { Spinner } from '../components/Spinner'
 import { BarcodeScannerModal } from '../components/BarcodeScannerModal'
+import { AIFoodScannerModal } from '../components/AIFoodScannerModal'
 import { useMeals } from '../hooks/useMeals'
 import { useTodayWorkout } from '../hooks/useTodayWorkout'
 import { Profile } from '../lib/supabase'
@@ -42,6 +43,7 @@ export function ErnährungPage({ userId, profile }: Props) {
   const [subTab, setSubTab] = useState<SubTab>('uebersicht')
   const [modalOpen, setModalOpen] = useState(false)
   const [scannerOpen, setScannerOpen] = useState(false)
+  const [aiScannerOpen, setAiScannerOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const today = new Date().toISOString().split('T')[0]
   const { meals, loading, addMeal, deleteMeal } = useMeals(userId, today)
@@ -195,6 +197,13 @@ export function ErnährungPage({ userId, profile }: Props) {
                 <span style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>Deine Mahlzeiten</span>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <button
+                    onClick={() => setAiScannerOpen(true)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: accent, padding: 4, display: 'flex', alignItems: 'center' }}
+                    title="KI-Analyse"
+                  >
+                    <Sparkles size={20} />
+                  </button>
+                  <button
                     onClick={() => setScannerOpen(true)}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: accent, padding: 4, display: 'flex', alignItems: 'center' }}
                     title="Barcode scannen"
@@ -251,6 +260,14 @@ export function ErnährungPage({ userId, profile }: Props) {
       {scannerOpen && (
         <BarcodeScannerModal
           onClose={() => setScannerOpen(false)}
+          onProduct={handleProductScanned}
+        />
+      )}
+
+      {/* AI food scanner */}
+      {aiScannerOpen && (
+        <AIFoodScannerModal
+          onClose={() => setAiScannerOpen(false)}
           onProduct={handleProductScanned}
         />
       )}

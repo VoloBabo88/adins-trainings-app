@@ -23,6 +23,8 @@ export type Profile = {
   carbs_goal_rest: number
   fat_goal_rest: number
   accent_color: string | null
+  nutritionix_app_id: string | null
+  nutritionix_app_key: string | null
   created_at: string
 }
 
