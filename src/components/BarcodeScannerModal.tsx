@@ -2,23 +2,41 @@ import { useEffect, useRef, useState } from 'react'
 import { X, Loader, AlertCircle } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 
-interface ProductData {
+export interface BarcodeProductData {
   name: string
   calories: number
   protein: number
   carbs: number
   fat: number
+  brand?: string
+  servingSize?: number
+  imageUrl?: string
 }
 
 interface Props {
   onClose: () => void
-  onProduct: (data: ProductData) => void
+  onProduct: (data: BarcodeProductData) => void
 }
 
-// Minimal BarcodeDetector interface for TS
 interface BarcodeResult { rawValue: string; format: string }
 interface BarcodeDetectorInstance { detect(source: HTMLVideoElement): Promise<BarcodeResult[]> }
 type BarcodeDetectorCtor = new (opts?: { formats?: string[] }) => BarcodeDetectorInstance
+
+const CACHE_TTL = 7 * 24 * 60 * 60 * 1000 // 7 days
+
+function getCached(barcode: string): BarcodeProductData | null {
+  try {
+    const raw = localStorage.getItem(`off_${barcode}`)
+    if (!raw) return null
+    const { data, ts } = JSON.parse(raw)
+    if (Date.now() - ts > CACHE_TTL) { localStorage.removeItem(`off_${barcode}`); return null }
+    return data
+  } catch { return null }
+}
+
+function setCache(barcode: string, data: BarcodeProductData) {
+  try { localStorage.setItem(`off_${barcode}`, JSON.stringify({ data, ts: Date.now() })) } catch { /* quota */ }
+}
 
 export function BarcodeScannerModal({ onClose, onProduct }: Props) {
   const { accent } = useTheme()
@@ -39,7 +57,6 @@ export function BarcodeScannerModal({ onClose, onProduct }: Props) {
         setErrorMsg('Dein Browser unterstützt den Barcode-Scanner nicht. Bitte Chrome auf Android verwenden oder Daten manuell eingeben.')
         return
       }
-
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 } } })
         streamRef.current = stream
@@ -67,19 +84,14 @@ export function BarcodeScannerModal({ onClose, onProduct }: Props) {
         }
 
         rafRef.current = window.setTimeout(scan, 200) as unknown as number
-      } catch (e) {
+      } catch {
         setStatus('error')
         setErrorMsg('Kamera konnte nicht geöffnet werden. Bitte Kamerazugriff erlauben.')
       }
     }
 
     init()
-
-    return () => {
-      doneRef.current = true
-      clearTimeout(rafRef.current)
-      stopStream()
-    }
+    return () => { doneRef.current = true; clearTimeout(rafRef.current); stopStream() }
   }, [])
 
   const stopStream = () => {
@@ -88,6 +100,9 @@ export function BarcodeScannerModal({ onClose, onProduct }: Props) {
   }
 
   const fetchProduct = async (barcode: string) => {
+    const cached = getCached(barcode)
+    if (cached) { onProductRef.current(cached); return }
+
     setStatus('fetching')
     try {
       const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`)
@@ -95,13 +110,18 @@ export function BarcodeScannerModal({ onClose, onProduct }: Props) {
       if (json.status === 1 && json.product) {
         const p = json.product
         const n = p.nutriments
-        onProductRef.current({
+        const data: BarcodeProductData = {
           name: p.product_name_de || p.product_name || barcode,
           calories: Math.round(n?.['energy-kcal_100g'] ?? n?.['energy-kcal'] ?? 0),
-          protein: Math.round(n?.proteins_100g ?? 0),
-          carbs: Math.round(n?.carbohydrates_100g ?? 0),
-          fat: Math.round(n?.fat_100g ?? 0),
-        })
+          protein: Math.round((n?.proteins_100g ?? 0) * 10) / 10,
+          carbs: Math.round((n?.carbohydrates_100g ?? 0) * 10) / 10,
+          fat: Math.round((n?.fat_100g ?? 0) * 10) / 10,
+          brand: p.brands || undefined,
+          servingSize: p.serving_quantity ? Number(p.serving_quantity) : undefined,
+          imageUrl: p.image_front_small_url || p.image_small_url || undefined,
+        }
+        setCache(barcode, data)
+        onProductRef.current(data)
       } else {
         setStatus('error')
         setErrorMsg(`Produkt "${barcode}" nicht in der Datenbank gefunden. Bitte manuell eingeben.`)
@@ -114,7 +134,6 @@ export function BarcodeScannerModal({ onClose, onProduct }: Props) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#0a0a0a', zIndex: 1100, display: 'flex', flexDirection: 'column' }}>
-      {/* Header */}
       <div style={{ padding: '16px', paddingTop: 'calc(16px + env(safe-area-inset-top))', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#111', borderBottom: '1px solid #1f1f1f', flexShrink: 0 }}>
         <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888' }}>
           <X size={22} />
@@ -123,17 +142,11 @@ export function BarcodeScannerModal({ onClose, onProduct }: Props) {
         <div style={{ width: 22 }} />
       </div>
 
-      {/* Camera viewport */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 20 }}>
         {status !== 'error' && (
           <div style={{ width: '100%', maxWidth: 360, position: 'relative', borderRadius: 16, overflow: 'hidden', background: '#111' }}>
-            <video
-              ref={videoRef}
-              playsInline
-              muted
-              style={{ width: '100%', display: 'block', borderRadius: 16, aspectRatio: '4/3', objectFit: 'cover' }}
-            />
-            {/* Scanner overlay */}
+            <video ref={videoRef} playsInline muted
+              style={{ width: '100%', display: 'block', borderRadius: 16, aspectRatio: '4/3', objectFit: 'cover' }} />
             <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <div style={{ width: '65%', height: '30%', border: `2px solid ${accent}`, borderRadius: 8, boxShadow: `0 0 0 9999px rgba(0,0,0,0.45)` }} />
             </div>
